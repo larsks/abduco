@@ -125,6 +125,7 @@ typedef struct {
 static Server server = { .running = true, .exit_status = -1 };
 static struct termios orig_term, cur_term;
 bool has_term;
+int readonly = 0;
 
 static struct sockaddr_un sockaddr = {
 	.sun_family = AF_UNIX,
@@ -329,7 +330,7 @@ static bool attach_session(const char *name) {
 	cur_term.c_cc[VTIME] = 0;
 	tcsetattr(0, TCSADRAIN, &cur_term);
 
-	int status = client_mainloop();
+	int status = client_mainloop(readonly);
 	client_restore_terminal();
 	if (status == -1) {
 		info("detached");
@@ -378,7 +379,9 @@ static int list_session() {
 }
 
 int main(int argc, char *argv[]) {
-	char **cmd = NULL, action = '\0';
+	char **cmd = NULL,
+	     action = '\0';
+
 	server.name = basename(argv[0]);
 	if (argc == 1)
 		exit(list_session());
@@ -409,12 +412,20 @@ int main(int argc, char *argv[]) {
 				*esc = CTRL(esc[1]);
 			KEY_DETACH = *esc;
 			break;
+		case 'r':
+			readonly = 1;
+			break;
 		case 'v':
 			puts("abduco-"VERSION" © 2013-2014 Marc André Tanner");
 			exit(EXIT_SUCCESS);
 		default:
 			usage();
 		}
+	}
+
+	if ((action == 'c' || action == 'A') && readonly) {
+		fprintf(stderr, "-r (read-only) does not make sense with -c/-A\n");
+		exit(EXIT_FAILURE);
 	}
 
 	if (!cmd) {

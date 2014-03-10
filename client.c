@@ -77,11 +77,12 @@ static void client_restore_terminal() {
 	client_show_cursor();
 }
 
-static int client_mainloop() {
+static int client_mainloop(int readonly) {
 	client.need_resize = true;
 	while (server.running) {
 		fd_set fds;
 		FD_ZERO(&fds);
+
 		FD_SET(STDIN_FILENO, &fds);
 		FD_SET(server.socket, &fds);
 
@@ -132,7 +133,7 @@ static int client_mainloop() {
 					pkt.len = 0;
 					client_send_packet(&pkt);
 					return -1;
-				} else {
+				} else if (!readonly) {
 					client_send_packet(&pkt);
 				}
 			}
